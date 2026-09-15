@@ -1,0 +1,18 @@
+# 密钥与个人数据（禁止提交，见 .claude/rules/03-config-secrets.md）
+.env
+config.json
+user_preferences.json
+
+# 本地 TTS 模型文件
+models/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
