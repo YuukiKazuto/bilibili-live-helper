@@ -26,9 +26,9 @@ class Settings:
     bili_access_secret: str = ""
     bili_api_host: str = "https://live-open.biliapi.net"
 
-    # 云端 TTS（密钥只从配置文件来，不读系统环境变量）
+    # 云端 TTS（密钥只从配置文件来，不读系统环境变量；接入规范见 rules/06）
     tts_cloud_api_key: str = ""
-    tts_cloud_api_url: str = ""
+    tts_cloud_speaker: str = "zh_female_vv_uranus_bigtts"
 
     # 后续新增大模型等密钥在此扩展
 
@@ -57,7 +57,9 @@ def load_settings(env_file: str = ".env", config_file: str = "config.json") -> S
         bili_access_secret=os.getenv("BILI_ACCESS_SECRET", ""),
         bili_api_host=os.getenv("BILI_API_HOST", Settings.bili_api_host),
         tts_cloud_api_key=os.getenv("TTS_CLOUD_API_KEY", ""),
-        tts_cloud_api_url=os.getenv("TTS_CLOUD_API_URL", ""),
+        tts_cloud_speaker=os.getenv(
+            "TTS_CLOUD_SPEAKER", Settings.tts_cloud_speaker
+        ),
     )
 
     # config.json 作为可选补充（优先级低于环境变量已存在的值）
