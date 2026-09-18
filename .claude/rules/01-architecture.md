@@ -20,6 +20,9 @@ bilibili_live_helper/
 │   ├── local_tts.py         # 本地 TTS
 │   └── cloud_tts.py         # 云端 TTS
 ├── config/                  # 配置加载（规则见 03-config-secrets.md）
+├── service/                 # 前端服务接口层：UI 访问核心的唯一入口（见「两阶段架构」）
+│   ├── base.py              # LiveHelperService 抽象接口
+│   └── local.py             # 阶段 1 进程内实现（后台线程 + asyncio）
 ├── ui/                      # 桌面 UI（开关勾选、阈值输入框、TTS 模式切换）
 └── utils/
 ```

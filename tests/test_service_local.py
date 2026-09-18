@@ -1,0 +1,174 @@
+"""service 层测试：生命周期、事件分发、偏好、模型管理。"""
+import asyncio
+import time
+
+import pytest
+
+import service.local as service_local
+from config.loader import Settings
+from config.preferences import Preferences
+from platforms.base import LiveEvent
+from service.base import ServiceError
+from service.local import LocalLiveService
+
+
+class FakePlatform:
+    """测试替身：connect 后注入一条事件，然后保持运行直到被取消。"""
+
+    instances: list["FakePlatform"] = []
+
+    def __init__(self, settings, id_code, on_event):
+        self.settings = settings
+        self.id_code = id_code
+        self.on_event = on_event
+        self.connected = False
+        self.closed = False
+        FakePlatform.instances.append(self)
+
+    async def connect(self):
+        self.connected = True
+
+    async def run(self):
+        await self.on_event(
+            LiveEvent(type="danmaku", user_name="测试用户", content="你好")
+        )
+        await asyncio.Event().wait()  # 挂起直至 stop 取消
+
+    async def close(self):
+        self.closed = True
+
+
+@pytest.fixture()
+def fake_platform_cls(monkeypatch):
+    monkeypatch.setattr(service_local, "BilibiliLiveClient", FakePlatform)
+    FakePlatform.instances.clear()
+    return FakePlatform
+
+
+def make_service(**prefs_kwargs) -> LocalLiveService:
+    prefs_kwargs.setdefault("bili_id_code", "CODE123")
+    return LocalLiveService(
+        settings=Settings(),
+        prefs=Preferences(**prefs_kwargs),
+    )
+
+
+def wait_until(cond, timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if cond():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def test_start_stop_lifecycle(fake_platform_cls):
+    service = make_service()
+    service.start()
+    assert service.is_running()
+    assert wait_until(lambda: fake_platform_cls.instances), "平台未创建"
+    platform = fake_platform_cls.instances[-1]
+    assert wait_until(lambda: platform.connected)
+    assert platform.id_code == "CODE123"
+
+    service.stop()
+    assert platform.closed
+    assert not service.is_running()
+
+    # 幂等：重复 stop 不报错
+    service.stop()
+
+
+def test_missing_id_code_raises(fake_platform_cls):
+    service = make_service(bili_id_code="")
+    with pytest.raises(ServiceError, match="身份码"):
+        service.start()
+    assert not service.is_running()
+
+
+def test_double_start_raises(fake_platform_cls):
+    service = make_service()
+    service.start()
+    try:
+        assert wait_until(lambda: fake_platform_cls.instances)
+        with pytest.raises(ServiceError, match="已在运行"):
+            service.start()
+    finally:
+        service.stop()
+
+
+def test_unsubscribe(fake_platform_cls):
+    service = make_service()
+    received: list[LiveEvent] = []
+    cb = received.append
+
+    service.subscribe_events(cb)
+    service.unsubscribe_events(cb)
+    service.start()
+    try:
+        assert wait_until(lambda: fake_platform_cls.instances)
+        time.sleep(0.1)
+        assert not received
+    finally:
+        service.stop()
+
+
+def test_events_forwarded_to_subscribers(fake_platform_cls):
+    service = make_service()
+    received: list[LiveEvent] = []
+
+    def on_event(event):
+        received.append(event)
+
+    service.subscribe_events(on_event)
+    service.start()
+    try:
+        assert wait_until(lambda: len(received) >= 1), "事件未转发到订阅者"
+        assert received[0].type == "danmaku"
+        assert received[0].user_name == "测试用户"
+    finally:
+        service.stop()
+
+
+def test_save_preferences(fake_platform_cls, monkeypatch):
+    saved = []
+    monkeypatch.setattr(
+        service_local.PreferenceStore, "save", lambda prefs, path=None: saved.append(prefs)
+    )
+    service = make_service()
+    prefs = service.get_preferences()
+    prefs.amount_threshold = 88.0
+    service.save_preferences()
+    assert saved == [prefs]
+    assert saved[0].amount_threshold == 88.0
+
+
+def test_warnings(fake_platform_cls):
+    # 云端模式 + 密钥缺失 + B站密钥缺失
+    service = make_service(tts_mode="cloud")
+    warns = service.warnings()
+    assert any("TTS_CLOUD_API_KEY" in w for w in warns)
+    assert any("bili_app_id" in w for w in warns)
+
+
+def test_list_models(fake_platform_cls):
+    service = make_service()
+    models = service.list_models()
+    assert len(models) == 2
+    ids = {m.model_id for m in models}
+    assert ids == {"vits-melo-tts-zh_en", "kokoro-multi-lang-v1_1"}
+    # downloaded 与本机实际下载状态一致（开发机 models/ 可能已有模型）
+    from tts.local.model_manager import resolve_models_dir
+    from tts.local.model_manager import ModelManager
+    manager = ModelManager(resolve_models_dir(service.get_preferences().models_dir))
+    for m in models:
+        expected = manager.is_downloaded(
+            next(x for x in service_local.AVAILABLE_MODELS if x.model_id == m.model_id)
+        )
+        assert m.downloaded == expected
+
+
+async def test_download_model_unknown(fake_platform_cls):
+    service = make_service()
+    with pytest.raises(ServiceError, match="未知模型"):
+        await service.download_model("no-such-model")
