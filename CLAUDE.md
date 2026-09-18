@@ -19,6 +19,7 @@
 ## 技术栈与基础
 
 - 主语言：**Python**
+- 依赖管理：**uv**（`pyproject.toml` + `uv.lock`）。新增/安装依赖一律用 `uv add` / `uv sync`，**禁止直接 `pip install`**
 - 对接B站直播间接口（开放平台长连协议），官方 demo 在 `demo/`（`demo/ws.py` 连接/鉴权/心跳，`demo/proto.py` 二进制协议打包解包）
 - 官方文档链接清单：见 [rules/05-bilibili-api.md](.claude/rules/05-bilibili-api.md)
 

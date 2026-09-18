@@ -41,6 +41,8 @@ class Preferences:
 
     # ── TTS 模式：local / cloud ──
     tts_mode: str = "local"
+    # 本地 TTS 模型选择："system"=系统自带；否则为 tts/local/model_manager.py 注册表中的 model_id
+    tts_local_model: str = "system"
 
     # ── 主播身份码（UI 填写，自动填充）──
     bili_id_code: str = ""
