@@ -26,7 +26,7 @@ async def run() -> None:
 
     # 3. 组装核心链路：事件总线 → 播报策略 → 播报队列 → TTS
     bus = EventBus()
-    tts = CloudTTS(settings) if prefs.tts_mode == "cloud" else LocalTTS(settings)
+    tts = CloudTTS(settings) if prefs.tts_mode == "cloud" else LocalTTS(settings, prefs.tts_local_model)
     queue = BroadcastQueue(tts.speak)
     queue.start()  # 单工作协程：顺序播报，付费事件插队但不打断
     broadcaster = Broadcaster(prefs, queue)

@@ -4,6 +4,8 @@
 - 第一层 7 项播报开关 + 第二层 4 项感谢开关 + 舰长进场开关
 - 金额阈值输入框（默认 50 元）
 - TTS 模式切换（本地/云端）
+- 本地模型下载选项与进度展示（能力已由 tts/local/model_manager.py 提供：
+  AVAILABLE_MODELS 列表 + ModelManager.download(progress=...)）
 - 主播身份码填写 + 保存（本地持久化，打开应用自动填充）
 - 密钥缺失提示（如云端 TTS 密钥未配置）
 
