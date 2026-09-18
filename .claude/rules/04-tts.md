@@ -21,7 +21,11 @@ UI 提供「本地 TTS / 云端 TTS」模式切换，`tts/base.py` 定义 `TTSPr
   - 淘汰：Piper（新版引擎 GPL-3.0 商用受限）、ChatTTS（CC BY-NC 禁商用）、CosyVoice/IndexTTS（GB 级需 GPU）
 - **模型注册表与下载**在 `tts/local/model_manager.py`：多源依次尝试（GitHub release 压缩包 → hf-mirror.com 按文件下载回退，应对国内网络），下载后校验必需文件，失败清理残留。
 - **模型选择**存于用户偏好 `tts_local_model`（`"system"` 或注册表 `model_id`，见 `config/preferences.py`）；模型未下载/未知时回退系统 TTS 并记日志。
-- 模型存放于项目根 `models/`（`.gitignore` 已覆盖）。
+- **模型存储目录（2026-09 定，配合 exe 打包）**：
+  - 默认**用户数据目录**：Windows `%LOCALAPPDATA%/bilibili-live-helper/models`，macOS `~/Library/Application Support/bilibili-live-helper/models`，Linux `~/.local/share/bilibili-live-helper/models`——安装到 Program Files 等只读目录后依然可写。
+  - 便携版例外：安装/解压目录**可写时**（探测有写权限）允许下载到安装目录下 `models/`，实现「绿色免安装」；不可写则自动回退用户数据目录并记日志。
+  - 用户偏好可显式配置 `models_dir` 覆盖默认解析。
+  - 开发模式（源码运行）仍可用项目根 `models/`（`.gitignore` 已覆盖），便于调试。
 
 ### 2. 云端 TTS
 

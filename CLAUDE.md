@@ -33,6 +33,7 @@
 | [.claude/rules/04-tts.md](.claude/rules/04-tts.md) | 本地 TTS / 云端 TTS 双模式设计与订阅制预留 |
 | [.claude/rules/05-bilibili-api.md](.claude/rules/05-bilibili-api.md) | B站开放平台官方文档链接清单与接入要点 |
 | [.claude/rules/06-volcengine-tts.md](.claude/rules/06-volcengine-tts.md) | 火山引擎（豆包语音）云端 TTS 接入规范与协议选型 |
+| [.claude/rules/07-ui.md](.claude/rules/07-ui.md) | 桌面 UI 设计规范：PySide6 选型、互动消息实时显示、打包 |
 
 ## 全局红线（任何情况下不可违反）
 
