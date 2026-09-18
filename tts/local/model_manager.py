@@ -1,13 +1,15 @@
 """本地 TTS 模型注册表与下载管理器。
 
 规则来源：.claude/rules/04-tts.md —— 模型必须免费可商用（MIT / Apache-2.0），
-模型文件存于项目根 models/（已加入 .gitignore，不入 Git）。
+模型存储目录按 resolve_models_dir() 解析（见下方说明，用户偏好 models_dir 可覆盖）。
 
 下载源设计为多源依次尝试：GitHub release 压缩包优先，hf-mirror 按文件下载回退
 （GitHub 直连在国内网络经常不可达，hf-mirror.com 为 HuggingFace 国内镜像）。
 """
 import logging
+import os
 import shutil
+import sys
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,9 +21,55 @@ logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[int, int | None], None]
 
-# 模型存放目录：项目根 models/（已加入 .gitignore，见 .claude/rules/04-tts.md）
+# 项目根目录（开发模式默认模型目录，已加入 .gitignore）
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 MODELS_DIR = ROOT_DIR / "models"
+
+_APP_DIR_NAME = "bilibili-live-helper"
+
+
+def _is_writable(dir_path: Path) -> bool:
+    """探测目录可写（含创建）；只读目录返回 False。"""
+    try:
+        dir_path.mkdir(parents=True, exist_ok=True)
+        probe = dir_path / ".write_probe"
+        probe.touch()
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+def user_models_dir() -> Path:
+    """用户数据目录下的模型目录（跨平台，安装到只读目录时也可写）。"""
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return base / _APP_DIR_NAME / "models"
+
+
+def resolve_models_dir(override: str = "") -> Path:
+    """按 .claude/rules/04-tts.md「模型存储目录」解析模型目录：
+
+    1. 用户偏好显式配置 models_dir → 直接使用；
+    2. 开发模式（源码运行，未打包）→ 项目根 models/，便于调试；
+    3. 打包后（sys.frozen）安装目录可写 → 便携版，下载到安装目录 models/；
+    4. 安装目录只读（如 Program Files）→ 用户数据目录
+       （Windows %LOCALAPPDATA%、macOS ~/Library/Application Support 等）。
+    """
+    if override:
+        return Path(override)
+
+    if not getattr(sys, "frozen", False):
+        return MODELS_DIR  # 开发模式
+
+    exe_dir = Path(sys.executable).resolve().parent
+    if _is_writable(exe_dir):
+        return exe_dir / "models"  # 便携版：安装目录可写
+    return user_models_dir()
 
 # 下载临时文件前缀（异常时清理，不污染模型目录）
 _TMP_PREFIX = "."

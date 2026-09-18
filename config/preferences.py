@@ -43,6 +43,8 @@ class Preferences:
     tts_mode: str = "local"
     # 本地 TTS 模型选择："system"=系统自带；否则为 tts/local/model_manager.py 注册表中的 model_id
     tts_local_model: str = "system"
+    # 本地模型存放目录：留空按 rules/04 自动解析（用户数据目录/便携安装目录/开发目录）
+    models_dir: str = ""
 
     # ── 主播身份码（UI 填写，自动填充）──
     bili_id_code: str = ""

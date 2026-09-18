@@ -9,6 +9,7 @@ from config.preferences import PreferenceStore
 from core.event_bus import EventBus
 from core.broadcast_queue import BroadcastQueue
 from core.broadcaster import Broadcaster
+from tts.local.model_manager import resolve_models_dir
 from tts.local_tts import LocalTTS
 from tts.cloud_tts import CloudTTS
 from platforms.bilibili.client import BilibiliLiveClient
@@ -26,7 +27,15 @@ async def run() -> None:
 
     # 3. 组装核心链路：事件总线 → 播报策略 → 播报队列 → TTS
     bus = EventBus()
-    tts = CloudTTS(settings) if prefs.tts_mode == "cloud" else LocalTTS(settings, prefs.tts_local_model)
+    tts = (
+        CloudTTS(settings)
+        if prefs.tts_mode == "cloud"
+        else LocalTTS(
+            settings,
+            prefs.tts_local_model,
+            models_dir=resolve_models_dir(prefs.models_dir),
+        )
+    )
     queue = BroadcastQueue(tts.speak)
     queue.start()  # 单工作协程：顺序播报，付费事件插队但不打断
     broadcaster = Broadcaster(prefs, queue)
