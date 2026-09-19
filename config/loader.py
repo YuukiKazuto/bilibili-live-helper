@@ -24,7 +24,7 @@ class Settings:
     bili_app_id: int = 0
     bili_access_key: str = ""
     bili_access_secret: str = ""
-    bili_api_host: str = "https://live-open.biliapi.net"
+    bili_api_host: str = "https://live-open.biliapi.com"
 
     # 云端 TTS（密钥只从配置文件来，不读系统环境变量；接入规范见 rules/06）
     tts_cloud_api_key: str = ""

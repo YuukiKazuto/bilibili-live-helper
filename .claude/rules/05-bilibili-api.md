@@ -19,7 +19,7 @@
 
 ## 接入要点（基于 demo）
 
-- 线上环境 host：`https://live-open.biliapi.net` / demo 中 `https://live-open.biliapi.com`，以官方文档为准。
+- 线上环境 host：`https://live-open.biliapi.com`（2026-09-19 实测：`live-open.biliapi.net` 无法 DNS 解析，弃用；与 demo 一致）。
 - HTTP 签名：`x-bili-*` 请求头按字典序拼接后 HMAC-SHA256（见 `demo/ws.py` 的 `sign()`，实现时需配注释）。
 - 长连流程：`/v2/app/start` 获取 wss 地址与 auth_body → WebSocket 连接 → 发送鉴权包（op=7）→ 每 20s 心跳（op=2）+ 应用心跳（`/v2/app/heartbeat`）→ 退出时 `/v2/app/end`。
 - 二进制协议：大端 16 字节包头（packetLen/ver/op/seq），见 `demo/proto.py`。
