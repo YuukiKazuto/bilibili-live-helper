@@ -90,8 +90,11 @@ class BilibiliLiveClient(PlatformBase):
         logger.info("应用已启动 game_id=%s，建立长连...", self.game_id)
         # ping_interval=None：B站 comet 服务器不回复协议层 PING（实测固定
         # 50s 后被 websockets 内建 keepalive 判超时自杀），长连保活依赖
-        # B站自有的 op=2 应用层心跳（_ws_heartbeat_loop）
-        self._ws = await websockets.connect(wss_link, ping_interval=None)
+        # B站自有的 op=2 应用层心跳（_ws_heartbeat_loop）。
+        # close_timeout=2：B站同样不回复 close 握手（默认 10s），缩短以快速停止
+        self._ws = await websockets.connect(
+            wss_link, ping_interval=None, close_timeout=2
+        )
         await self._auth(auth_body)
 
     async def _auth(self, auth_body: str) -> None:

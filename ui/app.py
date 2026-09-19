@@ -54,6 +54,7 @@ class MainWindow(QMainWindow):
         self.prefs: Preferences = service.get_preferences()
         self.bridge = bridge or ServiceBridge()
         self._floating: FloatingWindow | None = None
+        self._stopping = False  # 停止进行中（后台线程），同步计时器据此恢复按钮
 
         self.setWindowTitle("B站直播弹幕播报辅助")
         self.resize(560, 720)
@@ -108,9 +109,18 @@ class MainWindow(QMainWindow):
 
     def _toggle_service(self) -> None:
         if self.service.is_running():
+            # 停止可能耗时（close 握手等待），放后台线程执行，UI 不冻结
+            self._stopping = True
+            self.start_button.setEnabled(False)
+            self.start_button.setText("停止中…")
             self.status_label.setText("正在停止…")
-            self.service.stop()
-            self._sync_state()
+
+            def worker() -> None:
+                self.service.stop()
+                self._stopping = False  # GIL 下布尔赋值，同步计时器据此恢复按钮
+
+            import threading
+            threading.Thread(target=worker, name="service-stop", daemon=True).start()
             return
         try:
             self.service.start()
@@ -125,8 +135,11 @@ class MainWindow(QMainWindow):
         if running:
             self.status_label.setText("状态：运行中")
             self.start_button.setText("停止连接")
+            self.start_button.setEnabled(True)
         else:
             self.start_button.setText("开始连接")
+            if not self._stopping:  # 停止完成后恢复按钮
+                self.start_button.setEnabled(True)
             if self.status_label.text().startswith("状态：运行中"):
                 self.status_label.setText("状态：已断开")
             elif not self.status_label.text().startswith(("正在停止", "启动失败", "状态：")):

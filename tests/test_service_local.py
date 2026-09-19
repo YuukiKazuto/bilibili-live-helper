@@ -253,6 +253,8 @@ async def test_connect_disables_protocol_ping(fake_platform_cls):
     finally:
         monkey.undo()
     assert "ping_interval" in captured_kwargs and captured_kwargs["ping_interval"] is None
+    # B站也不回复 close 握手（实测挂满默认 10s 才关闭），须缩短 close_timeout
+    assert "close_timeout" in captured_kwargs and captured_kwargs["close_timeout"] <= 2
     # 清理资源（避免测试泄漏会话）
     client.game_id = ""
     client._ws = None

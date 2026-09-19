@@ -118,3 +118,28 @@ def test_floating_toggle_keeps_history(qtbot, window):
 def test_warnings_shown_in_warning_label(qtbot, window):
     service, w = window
     assert "云端 TTS 密钥未配置" in w.warning_label.text()
+
+
+def test_stop_does_not_block_ui_and_shows_stopping(qtbot):
+    """停止在后台线程执行：UI 不冻结，按钮显示停止中并自动恢复。"""
+    import time as _time
+
+    class SlowStopService(FakeService):
+        def stop(self, timeout=10.0):
+            _time.sleep(0.4)  # 模拟 close 握手等待
+            self._running = False
+
+    service = SlowStopService()
+    window = MainWindow(service, bridge=ServiceBridge())
+    qtbot.addWidget(window)
+    window.show()
+
+    window.start_button.click()
+    qtbot.waitUntil(lambda: service.is_running(), timeout=2000)
+
+    window.start_button.click()  # 触发停止
+    assert not window.start_button.isEnabled()  # 停止期间禁用，UI 未被阻塞
+    assert "停止" in window.start_button.text()
+
+    qtbot.waitUntil(lambda: window.start_button.isEnabled(), timeout=3000)
+    assert window.start_button.text() == "开始连接"
