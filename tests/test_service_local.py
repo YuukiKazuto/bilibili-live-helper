@@ -207,3 +207,54 @@ async def test_client_close_swallows_ws_close_timeout():
     client = BilibiliLiveClient(settings=Settings(), id_code="c", on_event=None)
     client._ws = BoomWS()
     await client.close()  # 不抛即通过
+
+
+async def test_connect_disables_protocol_ping(fake_platform_cls):
+    """B站 comet 服务器不回复协议层 PING（实测），必须禁用 websockets
+    内建 keepalive，长连保活靠 B站自有的 op=2 应用层心跳。"""
+    import json
+
+    import platforms.bilibili.client as client_mod
+    from platforms.bilibili.client import BilibiliLiveClient
+    from platforms.bilibili.proto import Proto, OP_AUTH_REPLY
+
+    captured_kwargs: dict = {}
+
+    def auth_reply_frame() -> bytes:
+        p = Proto()
+        p.op = OP_AUTH_REPLY
+        p.body = json.dumps({"code": 0}).encode()
+        return p.pack()
+
+    class FakeWS:
+        async def send(self, data):
+            pass
+
+        async def recv(self):
+            return auth_reply_frame()
+
+    async def fake_connect(addr, **kwargs):
+        captured_kwargs.update(kwargs)
+        return FakeWS()
+
+    async def fake_post(self, path, params):
+        assert path == "/v2/app/start"
+        return {
+            "game_info": {"game_id": "g1"},
+            "websocket_info": {"wss_link": ["wss://fake"], "auth_body": "b"},
+        }
+
+    client = BilibiliLiveClient(settings=Settings(), id_code="c", on_event=None)
+    monkey = pytest.MonkeyPatch()
+    try:
+        monkey.setattr(client_mod.websockets, "connect", fake_connect)
+        monkey.setattr(BilibiliLiveClient, "_post", fake_post)
+        await client.connect()
+    finally:
+        monkey.undo()
+    assert "ping_interval" in captured_kwargs and captured_kwargs["ping_interval"] is None
+    # 清理资源（避免测试泄漏会话）
+    client.game_id = ""
+    client._ws = None
+    if client._session is not None:
+        await client._session.close()

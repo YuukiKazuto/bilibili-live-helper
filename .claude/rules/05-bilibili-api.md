@@ -22,6 +22,9 @@
 - 线上环境 host：`https://live-open.biliapi.com`（2026-09-19 实测：`live-open.biliapi.net` 无法 DNS 解析，弃用；与 demo 一致）。
 - HTTP 签名：`x-bili-*` 请求头按字典序拼接后 HMAC-SHA256（见 `demo/ws.py` 的 `sign()`，实现时需配注释）。
 - 长连流程：`/v2/app/start` 获取 wss 地址与 auth_body → WebSocket 连接 → 发送鉴权包（op=7）→ 每 20s 心跳（op=2）+ 应用心跳（`/v2/app/heartbeat`）→ 退出时 `/v2/app/end`。
+- **长连必须 `ping_interval=None` 禁用 websockets 内建 keepalive**（2026-09-19 实测：B站
+  comet 服务器不回复协议层 PING，连接固定 ~50s 后被库判超时自杀 CLOSE 1011，
+  表现为「收到少量事件后全部断流」）；保活仅依赖 B站自有 op=2 应用层心跳。
 - 二进制协议：大端 16 字节包头（packetLen/ver/op/seq），见 `demo/proto.py`。
 - 礼物金额单位：`LIVE_OPEN_PLATFORM_SEND_GIFT` 的 `price` 为**金瓜子**（1元 = 1000金瓜子，
   2026-09-19 实测 0.1 元人气票 price=100），换算 `amount = price × num / 1000`。
