@@ -30,8 +30,9 @@ class Preferences:
     # ── 第二层：附加感谢播报开关（独立可选）──
     thanks_gift: bool = False              # 礼物投喂感谢
     thanks_super_chat: bool = False        # 醒目留言感谢
-    thanks_follow: bool = False            # 关注通知感谢
+    thanks_follow: bool = False            # 关注通知感谢（⚠ 协议无此事件，见 rules/05）
     thanks_guard: bool = False             # 大航海上舰感谢
+    thanks_like: bool = False              # 点赞感谢
 
     # ── 独立可选开关 ──
     guard_entry_welcome: bool = False      # 舰长进场播报

@@ -58,6 +58,7 @@ def test_switch_fields_cover_all_rule_02_switches():
         "broadcast_entry", "broadcast_follow", "broadcast_guard",
         "broadcast_like",
         "thanks_gift", "thanks_super_chat", "thanks_follow", "thanks_guard",
+        "thanks_like",
         "guard_entry_welcome",
     }
     assert {name for name, _ in SWITCH_FIELDS} == expected

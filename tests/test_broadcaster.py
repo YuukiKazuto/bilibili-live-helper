@@ -47,3 +47,16 @@ def test_blind_gift_thanks_text():
     e = LiveEvent(type="gift", user_name="老板", gift_name="干杯",
                   num=1, amount=1.0, is_blind=True)
     assert b.build_texts(e) == ["感谢老板投喂的盲盒爆出的干杯"]
+
+
+def test_like_thanks_text():
+    """点赞感谢（2026-09-19 新增）：谢谢[昵称]的点赞。"""
+    b = make_broadcaster(thanks_like=True)
+    e = LiveEvent(type="like", user_name="阿甲")
+    assert b.build_texts(e) == ["谢谢阿甲的点赞"]
+
+
+def test_like_thanks_disabled_by_default():
+    b = make_broadcaster()
+    e = LiveEvent(type="like", user_name="阿甲")
+    assert b.build_texts(e) == []

@@ -107,6 +107,9 @@ class Broadcaster:
         if event.type == "follow" and p.thanks_follow:
             return f"感谢{name}的关注"
 
+        if event.type == "like" and p.thanks_like:
+            return f"谢谢{name}的点赞"
+
         if event.type == "guard" and p.thanks_guard:
             return f"感谢{name}的舰长，老板大气"
 

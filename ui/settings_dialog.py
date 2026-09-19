@@ -28,8 +28,7 @@ from PySide6.QtWidgets import (
 from config.preferences import Preferences
 
 # rules/02 开关字段 → 中文标签（顺序即展示顺序；字段名即 Preferences 字段）
-SWITCH_FIELDS: list[tuple[str, str]] = [
-    # 第一层：播报开关（勾选即播报事件原文）
+_LAYER1_FIELDS = [
     ("broadcast_danmaku", "弹幕"),
     ("broadcast_gift", "礼物投喂"),
     ("broadcast_super_chat", "醒目留言"),
@@ -37,18 +36,17 @@ SWITCH_FIELDS: list[tuple[str, str]] = [
     ("broadcast_follow", "关注通知"),
     ("broadcast_guard", "大航海上舰"),
     ("broadcast_like", "点赞"),
-    # 第二层：附加感谢播报开关（独立可选）
+]
+_LAYER2_FIELDS = [
     ("thanks_gift", "礼物投喂感谢"),
     ("thanks_super_chat", "醒目留言感谢"),
     ("thanks_follow", "关注通知感谢"),
     ("thanks_guard", "大航海上舰感谢"),
-    # 独立可选开关
-    ("guard_entry_welcome", "舰长进场播报"),
+    ("thanks_like", "点赞感谢"),
 ]
+_GUARD_ENTRY_FIELD = [("guard_entry_welcome", "舰长进场播报")]
 
-_LAYER1_FIELDS = SWITCH_FIELDS[:7]
-_LAYER2_FIELDS = SWITCH_FIELDS[7:11]
-_GUARD_ENTRY_FIELD = SWITCH_FIELDS[11]
+SWITCH_FIELDS: list[tuple[str, str]] = _LAYER1_FIELDS + _LAYER2_FIELDS + _GUARD_ENTRY_FIELD
 
 
 class SettingsDialog(QDialog):
@@ -74,7 +72,7 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(self._build_switch_group("播报开关（勾选即播报事件原文）", _LAYER1_FIELDS))
         layout.addWidget(self._build_switch_group("附加感谢播报（独立可选）", _LAYER2_FIELDS))
-        layout.addWidget(self._build_switch_group("其他", [_GUARD_ENTRY_FIELD]))
+        layout.addWidget(self._build_switch_group("其他", _GUARD_ENTRY_FIELD))
         layout.addWidget(self._build_tts_group(models or []))
 
         buttons = QDialogButtonBox(
