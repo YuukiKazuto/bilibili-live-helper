@@ -37,5 +37,10 @@
   - 醒目留言 `SUPER_CHAT`：金额字段是 **`rmb`（单位已是元）**，非 price。
   - 其他可用 CMD（暂未处理，按需扩展）：`LIVE_START/END`（开播/下播）、
     `INTERACTION_END`（game_id 失效）、`SUPER_CHAT_DEL`、`DM_MIRROR`。
+- 协议限制（2026-09-19 文档核对，不是代码问题）：
+  - **长连协议没有「关注」事件**（11 个 CMD 中无 FOLLOW）——「关注通知/感谢关注」
+    开关在开放平台下收不到事件，属预期行为。
+  - **点赞仅在开播中触发**，且来源是**移动端 APP 双击画面**（网页点赞不推），
+    单一用户 2 秒内聚合为一条（`like_count`）。
 - 密钥（access_key/access_key_secret/app_id）来自项目配置文件；主播身份码由主播在 UI 填写并本地持久化（阶段 1），阶段 2 插件内直接获取（详见 [03-config-secrets.md](03-config-secrets.md)）。
 - 事件解析归一化为统一事件模型后进入事件总线（见 [01-architecture.md](01-architecture.md)），事件与播报开关的映射见 [02-features.md](02-features.md)。
