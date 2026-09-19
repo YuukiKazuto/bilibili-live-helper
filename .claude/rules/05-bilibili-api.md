@@ -26,7 +26,16 @@
   comet 服务器不回复协议层 PING，连接固定 ~50s 后被库判超时自杀 CLOSE 1011，
   表现为「收到少量事件后全部断流」）；保活仅依赖 B站自有 op=2 应用层心跳。
 - 二进制协议：大端 16 字节包头（packetLen/ver/op/seq），见 `demo/proto.py`。
-- 礼物金额单位：`LIVE_OPEN_PLATFORM_SEND_GIFT` 的 `price` 为**金瓜子**（1元 = 1000金瓜子，
-  2026-09-19 实测 0.1 元人气票 price=100），换算 `amount = price × num / 1000`。
+- 事件字段以官方文档为准（2026-09-19 逐字段核对，此前有臆造错误）：
+  - CMD 名称：进场是 `LIVE_OPEN_PLATFORM_LIVE_ROOM_ENTER`（非 LIVE_ENTER_ROOM）；
+    上舰是 `LIVE_OPEN_PLATFORM_GUARD`（非 GUARD_BUY）——错误 CMD 不会触发任何事件。
+  - 礼物 `SEND_GIFT`：数量字段是 **`gift_num`**（非 amount）；`price`/`r_price` 单位为
+    **金瓜子**（1000 = 1元 = 10电池，实测 0.1 元人气票 price=100）；`r_price` 为实际价值
+    优先采用；盲盒 `blind_gift.status=true`，`gift_name` 为爆出道具名，播报直接
+    「盲盒爆出的 xx」（不做盒名映射）。
+  - 上舰 `GUARD`：昵称在 `user_info.uname`（嵌套）；数量字段 `guard_num`。
+  - 醒目留言 `SUPER_CHAT`：金额字段是 **`rmb`（单位已是元）**，非 price。
+  - 其他可用 CMD（暂未处理，按需扩展）：`LIVE_START/END`（开播/下播）、
+    `INTERACTION_END`（game_id 失效）、`SUPER_CHAT_DEL`、`DM_MIRROR`。
 - 密钥（access_key/access_key_secret/app_id）来自项目配置文件；主播身份码由主播在 UI 填写并本地持久化（阶段 1），阶段 2 插件内直接获取（详见 [03-config-secrets.md](03-config-secrets.md)）。
 - 事件解析归一化为统一事件模型后进入事件总线（见 [01-architecture.md](01-architecture.md)），事件与播报开关的映射见 [02-features.md](02-features.md)。
