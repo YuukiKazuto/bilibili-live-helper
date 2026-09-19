@@ -13,7 +13,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # 项目根目录
-ROOT_DIR = Path(__file__).resolve().parent.parent
+from utils.app_paths import app_root
 
 
 @dataclass
@@ -49,7 +49,7 @@ def load_settings(env_file: str = ".env", config_file: str = "config.json") -> S
 
     主播身份码不在此处 —— 它是用户在 UI 填写并持久化的偏好（见 preferences.py）。
     """
-    load_dotenv(ROOT_DIR / env_file)
+    load_dotenv(app_root() / env_file)
 
     settings = Settings(
         bili_app_id=int(os.getenv("BILI_APP_ID", "0") or 0),
@@ -63,7 +63,7 @@ def load_settings(env_file: str = ".env", config_file: str = "config.json") -> S
     )
 
     # config.json 作为可选补充（优先级低于环境变量已存在的值）
-    path = ROOT_DIR / config_file
+    path = app_root() / config_file
     if path.exists():
         data = json.loads(path.read_text(encoding="utf-8"))
         for k, v in data.items():

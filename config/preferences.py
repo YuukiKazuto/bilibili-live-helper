@@ -10,8 +10,10 @@ import json
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
-PREFS_PATH = ROOT_DIR / "user_preferences.json"
+# 打包后 exe 旁边的用户偏好文件（源码运行 = 项目根，见 utils/app_paths.py）
+from utils.app_paths import app_root
+
+PREFS_PATH = app_root() / "user_preferences.json"
 
 
 @dataclass
