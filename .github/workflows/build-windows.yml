@@ -1,0 +1,68 @@
+# GitHub Actions 学习笔记（2026-09-19）
+#
+# GitHub Actions 的三个核心概念：
+# 1. workflow（本文件）：一个自动化流程，放在 .github/workflows/ 下会被 GitHub 自动识别
+# 2. job：一组在同一台虚拟机上执行的步骤，本文件只有一个 job
+# 3. step：具体的一步，可以是 action（复用组件，uses: 引用）或 shell 命令（run: 执行）
+#
+# 本 workflow 的作用：在 GitHub 的 Windows 虚拟机上用 PyInstaller 打包 exe。
+# 背景：PyInstaller 不支持交叉编译——macOS 上打不出 Windows 包，必须借 Windows 环境，
+# 云端虚拟机是免费（公开仓库）且可重复的方案。
+
+name: Build Windows
+
+# ── 触发条件（on）──
+# workflow_dispatch：允许在 GitHub 网页「Actions」页手动点按钮触发（学习阶段最直观）
+# push tags v*：推送 v 开头的标签时自动触发（如 git tag v0.1.0 && git push --tags），
+#               用于以后正式发版
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    # 运行环境：GitHub 提供的 Windows Server 虚拟机（公开仓库免费）
+    runs-on: windows-latest
+
+    steps:
+      # step 1：把仓库代码检出到虚拟机（actions/checkout 是官方复用组件）
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # step 2：安装 uv（astral-sh/setup-uv 自动适配 Windows，无需手动装 Python）
+      - name: 安装 uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          # uv 会按 pyproject.toml requires-python 自动装对应版本 Python
+          enable-cache: true  # 缓存依赖，加快下次构建
+
+      # step 3：按 uv.lock 精确安装依赖（含 dev 组的 pyinstaller）
+      - name: 安装依赖
+        run: uv sync
+
+      # step 4：PyInstaller 打包
+      # --windowed：GUI 程序，不弹黑色控制台窗口（rules/07）
+      # --onedir：产物为目录，启动快、便于排查（rules/07）；onefile 每次启动要解压到临时目录
+      # --name：产物名
+      #
+      # 密钥红线（rules/03）：仓库里没有 .env，此步骤天然只打包代码和依赖，
+      # 任何情况下都不要把 .env 提交进仓库或放进打包产物
+      - name: PyInstaller 打包
+        run: >
+          uv run pyinstaller --windowed --onedir --noconfirm
+          --name bilibili-live-helper main.py
+
+      # step 5：把产物目录压缩成 zip（onedir 是个文件夹，分发要先压缩）
+      # PowerShell 是 Windows runner 的默认 shell
+      - name: 压缩产物
+        run: Compress-Archive -Path dist/bilibili-live-helper/* -DestinationPath bilibili-live-helper-windows.zip
+
+      # step 6：把 zip 上传为「构件（artifact）」——构建产物会挂在本次运行的
+      # 「Actions → 本次运行 → Artifacts」区域，网页上即可下载
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: bilibili-live-helper-windows
+          path: bilibili-live-helper-windows.zip
+          retention-days: 30  # 构件保留天数，过期自动清理
