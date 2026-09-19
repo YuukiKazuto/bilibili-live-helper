@@ -34,44 +34,44 @@ def _danmaku(d: dict) -> list[LiveEvent]:
 
 
 def _gift(d: dict) -> list[LiveEvent]:
-    # LIVE_OPEN_PLATFORM_SEND_GIFT：礼物投喂
+    # LIVE_OPEN_PLATFORM_SEND_GIFT：礼物投喂（字段以官方文档为准）
     uname = d.get("uname", "")
     gift_name = d.get("gift_name", "")
-    # price 单位是金瓜子（1元 = 1000金瓜子，实测 0.1 元人气票 price=100）
-    price = d.get("price", 0) or 0
-    num = d.get("amount", 1) or 1
+    # price/r_price 单位是金瓜子（1000 = 1元 = 10电池）；盲盒场景为爆出道具价值
+    # r_price 是实际价值，存在时优先
+    price = d.get("r_price") or d.get("price", 0) or 0
+    # 官方文档：数量字段为 gift_num（非 amount）
+    num = d.get("gift_num", 1) or 1
+    blind = d.get("blind_gift") or {}
+    is_blind = bool(blind.get("status"))
     return [LiveEvent(
         type="gift",
         user_name=uname,
         amount=price * num / 1000,  # 金瓜子 → 元
         num=num,
         gift_name=gift_name,
-        extra={"gift_id": d.get("gift_id")},
+        is_blind=is_blind,
+        extra={"gift_id": d.get("gift_id"), "blind_gift_id": blind.get("blind_gift_id")},
     )]
 
 
 def _super_chat(d: dict) -> list[LiveEvent]:
-    # LIVE_OPEN_PLATFORM_SUPER_CHAT：醒目留言
+    # LIVE_OPEN_PLATFORM_SUPER_CHAT：醒目留言（官方文档：金额字段为 rmb，单位元）
     uname = d.get("uname", "")
     msg = d.get("message", "")
     return [LiveEvent(
         type="super_chat",
         user_name=uname,
         content=msg,
-        amount=d.get("price", 0) or 0,
+        amount=float(d.get("rmb", 0) or 0),
         extra={"message_id": d.get("message_id")},
     )]
 
 
 def _entry(d: dict) -> list[LiveEvent]:
-    # LIVE_OPEN_PLATFORM_LIVE_ENTER_ROOM：进场消息
+    # LIVE_OPEN_PLATFORM_LIVE_ROOM_ENTER：进场消息（官方文档无航海信息字段）
     uname = d.get("uname", "")
-    is_guard = d.get("guard_info", {}).get("guard_level", 0) > 0
-    return [LiveEvent(
-        type="entry",
-        user_name=uname,
-        is_guard=is_guard,
-    )]
+    return [LiveEvent(type="entry", user_name=uname)]
 
 
 def _follow(d: dict) -> list[LiveEvent]:
@@ -83,16 +83,19 @@ def _follow(d: dict) -> list[LiveEvent]:
 
 
 def _guard(d: dict) -> list[LiveEvent]:
-    # LIVE_OPEN_PLATFORM_GUARD_BUY：大航海（舰长/提督/总督）
-    uname = d.get("uname", "")
+    # LIVE_OPEN_PLATFORM_GUARD：大航海（舰长/提督/总督）
+    # 官方文档：昵称在 user_info.uname；price 为金瓜子；数量字段 guard_num
+    user_info = d.get("user_info") or {}
+    uname = user_info.get("uname", "")
     level = d.get("guard_level", 3)  # 3=舰长 2=提督 1=总督
     title = {1: "总督", 2: "提督", 3: "舰长"}.get(level, "舰长")
     return [LiveEvent(
         type="guard",
         user_name=uname,
-        amount=d.get("price", 0) or 0,
+        amount=(d.get("price", 0) or 0) * (d.get("guard_num", 1) or 1) / 1000,
+        num=d.get("guard_num", 1) or 1,
         guard_title=title,
-        extra={"guard_level": level, "num": d.get("num", 1)},
+        extra={"guard_level": level, "guard_unit": d.get("guard_unit", "")},
     )]
 
 
@@ -108,8 +111,8 @@ _HANDLERS = {
     "LIVE_OPEN_PLATFORM_DM": _danmaku,
     "LIVE_OPEN_PLATFORM_SEND_GIFT": _gift,
     "LIVE_OPEN_PLATFORM_SUPER_CHAT": _super_chat,
-    "LIVE_OPEN_PLATFORM_LIVE_ENTER_ROOM": _entry,
+    "LIVE_OPEN_PLATFORM_LIVE_ROOM_ENTER": _entry,  # 官方 CMD（原 LIVE_ENTER_ROOM 为臆造）
     "LIVE_OPEN_PLATFORM_FOLLOW": _follow,
-    "LIVE_OPEN_PLATFORM_GUARD_BUY": _guard,
+    "LIVE_OPEN_PLATFORM_GUARD": _guard,            # 官方 CMD（原 GUARD_BUY 为臆造）
     "LIVE_OPEN_PLATFORM_LIKE": _like,
 }

@@ -59,3 +59,13 @@ def test_category_label_maps_all_event_types():
     """所有事件类型都有类别标签（面板需显示全部事件类型）。"""
     for t in ("danmaku", "gift", "super_chat", "entry", "follow", "guard", "like"):
         assert category_label(t) != "其他"
+
+
+def test_blind_gift_format():
+    """盲盒在面板中显示为「盲盒爆出的 [道具名]」。"""
+    e = LiveEvent(type="gift", user_name="老板", gift_name="干杯",
+                  num=1, amount=1.0, is_blind=True)
+    label, text = format_event(e)
+    assert label == "礼物"
+    assert "盲盒爆出的干杯" in text
+    assert "¥1" in text

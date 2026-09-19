@@ -22,6 +22,7 @@ class LiveEvent:
     amount: float = 0.0  # 金额（元）：礼物/醒目留言用
     num: int = 1         # 数量：礼物件数等
     gift_name: str = ""  # 礼物名称
+    is_blind: bool = False  # 是否盲盒礼物（爆出道具）
     guard_title: str = ""  # 大航海档位（舰长/提督/总督）
     is_guard: bool = False  # 用户是否舰长（舰长进场播报用）
     extra: dict | None = None  # 平台附加字段（扩展预留）

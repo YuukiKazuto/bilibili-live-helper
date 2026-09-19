@@ -33,7 +33,10 @@ def format_event(event: LiveEvent) -> tuple[str, str]:
     if event.type == "danmaku":
         text = f"{name} 说：{event.content}"
     elif event.type == "gift":
-        text = f"{name} 投喂了 {event.num} 个{event.gift_name}（¥{event.amount:g}）"
+        if event.is_blind:
+            text = f"{name} 投喂了盲盒爆出的{event.gift_name}（¥{event.amount:g}）"
+        else:
+            text = f"{name} 投喂了 {event.num} 个{event.gift_name}（¥{event.amount:g}）"
     elif event.type == "super_chat":
         text = f"{name} 发来醒目留言（¥{event.amount:g}）：{event.content}"
     elif event.type == "guard":

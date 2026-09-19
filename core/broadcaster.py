@@ -67,6 +67,8 @@ class Broadcaster:
             case "danmaku":
                 return f'{name}说：“{event.content}”'
             case "gift":
+                if event.is_blind:
+                    return f"{name}投喂了盲盒爆出的{event.gift_name}"
                 return f"{name}投喂了 {event.num} 个{event.gift_name}"
             case "super_chat":
                 return f'{name}发来醒目留言：{event.content}'
@@ -88,7 +90,10 @@ class Broadcaster:
         threshold = p.amount_threshold
 
         if event.type == "gift" and p.thanks_gift:
-            text = f"感谢{name}投喂的 {event.num} 个{event.gift_name}"
+            if event.is_blind:
+                text = f"感谢{name}投喂的盲盒爆出的{event.gift_name}"
+            else:
+                text = f"感谢{name}投喂的 {event.num} 个{event.gift_name}"
             if event.amount >= threshold:
                 text += "，老板大气"
             return text

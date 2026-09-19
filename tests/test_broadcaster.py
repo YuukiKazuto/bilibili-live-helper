@@ -32,3 +32,18 @@ def test_gift_thanks_above_threshold_appends_laoban():
     b = make_broadcaster(thanks_gift=True, amount_threshold=50.0)
     e = LiveEvent(type="gift", user_name="老板", gift_name="火箭", num=1, amount=500.0)
     assert b.build_texts(e) == ["感谢老板投喂的 1 个火箭，老板大气"]
+
+
+def test_blind_gift_raw_text():
+    """盲盒模板：直接「盲盒爆出的 xx」（不做盒名映射，用户决策 2026-09-19）。"""
+    b = make_broadcaster(broadcast_gift=True)
+    e = LiveEvent(type="gift", user_name="老板", gift_name="干杯",
+                  num=1, amount=1.0, is_blind=True)
+    assert b.build_texts(e) == ["老板投喂了盲盒爆出的干杯"]
+
+
+def test_blind_gift_thanks_text():
+    b = make_broadcaster(thanks_gift=True)
+    e = LiveEvent(type="gift", user_name="老板", gift_name="干杯",
+                  num=1, amount=1.0, is_blind=True)
+    assert b.build_texts(e) == ["感谢老板投喂的盲盒爆出的干杯"]
