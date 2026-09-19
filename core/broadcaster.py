@@ -67,7 +67,7 @@ class Broadcaster:
             case "danmaku":
                 return f'{name}说：“{event.content}”'
             case "gift":
-                return f"{name}投喂了{event.gift_name}"
+                return f"{name}投喂了 {event.num} 个{event.gift_name}"
             case "super_chat":
                 return f'{name}发来醒目留言：{event.content}'
             case "entry":
@@ -88,7 +88,7 @@ class Broadcaster:
         threshold = p.amount_threshold
 
         if event.type == "gift" and p.thanks_gift:
-            text = f"感谢{name}投喂的{event.gift_name}"
+            text = f"感谢{name}投喂的 {event.num} 个{event.gift_name}"
             if event.amount >= threshold:
                 text += "，老板大气"
             return text

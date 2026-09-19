@@ -172,3 +172,38 @@ async def test_download_model_unknown(fake_platform_cls):
     service = make_service()
     with pytest.raises(ServiceError, match="未知模型"):
         await service.download_model("no-such-model")
+
+
+def test_platform_crash_exits_cleanly():
+    """平台以真实异常退出（如长连 keepalive 超时）时服务正常收尾，不炸事件循环。
+
+    现场复现（2026-09-19）：websockets ConnectionClosedError 穿透
+    `await platform_task`（原实现只 suppress CancelledError）导致
+    「[服务] 事件循环异常退出」+ 完整堆栈。
+    """
+    class DyingPlatform(FakePlatform):
+        async def run(self):
+            await self.on_event(LiveEvent(type="danmaku", user_name="A", content="hi"))
+            raise RuntimeError("simulated ConnectionClosedError")
+
+    service = LocalLiveService(
+        settings=Settings(),
+        prefs=Preferences(bili_id_code="CODE123"),
+        platform_factory=lambda s, c, cb: DyingPlatform(s, c, cb),
+    )
+    # 原实现此处会抛 RuntimeError；修复后应正常返回
+    asyncio.run(service._run())
+    assert not service.is_running()
+
+
+async def test_client_close_swallows_ws_close_timeout():
+    """close 时 ws 关闭握手超时（现场实测 TimeoutError）不应向上抛。"""
+    class BoomWS:
+        async def close(self):
+            raise TimeoutError("timed out while closing connection")
+
+    from platforms.bilibili.client import BilibiliLiveClient
+
+    client = BilibiliLiveClient(settings=Settings(), id_code="c", on_event=None)
+    client._ws = BoomWS()
+    await client.close()  # 不抛即通过

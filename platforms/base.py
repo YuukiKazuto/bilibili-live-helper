@@ -20,6 +20,7 @@ class LiveEvent:
     user_name: str       # 用户昵称
     content: str = ""    # 文本内容（弹幕内容 / 醒目留言内容）
     amount: float = 0.0  # 金额（元）：礼物/醒目留言用
+    num: int = 1         # 数量：礼物件数等
     gift_name: str = ""  # 礼物名称
     guard_title: str = ""  # 大航海档位（舰长/提督/总督）
     is_guard: bool = False  # 用户是否舰长（舰长进场播报用）

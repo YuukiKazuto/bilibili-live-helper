@@ -8,9 +8,11 @@
 - 密钥只从项目配置文件读取（Settings），缺失明确提示；失败记日志跳过，不中断播报循环
 - 计费钩子预留（阶段 2 订阅制）：UsageResponse 事件 / usage 字数
 """
+import asyncio
 import json
 import logging
 import uuid
+from contextlib import suppress
 from typing import Any, Awaitable, Callable
 
 import sounddevice as sd
@@ -118,8 +120,11 @@ class CloudTTS(TTSProvider):
             logger.error("[云端TTS] 密钥缺失，跳过播报: %s", text)
             return
         conn = None
+        player = None
         try:
-            player = self._player_factory()
+            # sounddevice 的构造/写入/排空都是阻塞调用，必须放线程池执行，
+            # 否则播报期间整个事件循环（收弹幕/心跳/ws keepalive）被冻结
+            player = await asyncio.to_thread(self._player_factory)
             conn = await self._connect_factory()
             request = json.dumps(build_request_payload(text, speaker=self.speaker))
             await conn.send(encode_full_client_request(request.encode("utf-8")))
@@ -128,7 +133,7 @@ class CloudTTS(TTSProvider):
             while True:
                 frame: Frame = decode_frame(await conn.recv())
                 if frame.msg_type == MSG_AUDIO_ONLY_SERVER:
-                    player.write(frame.payload)
+                    await asyncio.to_thread(player.write, frame.payload)
                 elif frame.msg_type == MSG_ERROR:
                     logger.error(
                         "[云端TTS] 合成失败 code=%s: %s",
@@ -152,7 +157,7 @@ class CloudTTS(TTSProvider):
                     logger.error("[云端TTS] 会话失败: %r", frame.payload)
                     break
 
-            player.drain()
+            await asyncio.to_thread(player.drain)
             if usage:
                 self._charge_hook(usage)
         except Exception:
@@ -160,6 +165,10 @@ class CloudTTS(TTSProvider):
         finally:
             if conn is not None:
                 await conn.close()
+            if player is not None:
+                # 每次播报的音频流必须关闭，否则 PortAudio 流持续泄漏
+                with suppress(Exception):
+                    await asyncio.to_thread(player.close)
 
     async def _default_connect(self):
         """生产连接：每次合成建立一条 WebSocket（无状态，失败即弃）。"""
@@ -169,7 +178,7 @@ class CloudTTS(TTSProvider):
             max_size=10 * 1024 * 1024,
         )
 
-    async def _charge_hook(self, usage: dict) -> None:
+    def _charge_hook(self, usage: dict) -> None:
         """订阅制计费钩子（阶段 2 预留：订阅态校验、用量上报）。"""
 
     async def close(self) -> None:

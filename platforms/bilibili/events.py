@@ -37,15 +37,16 @@ def _gift(d: dict) -> list[LiveEvent]:
     # LIVE_OPEN_PLATFORM_SEND_GIFT：礼物投喂
     uname = d.get("uname", "")
     gift_name = d.get("gift_name", "")
-    # price 为单价（元），amount 为数量；总金额 = 单价 × 数量
+    # price 单位是金瓜子（1元 = 1000金瓜子，实测 0.1 元人气票 price=100）
     price = d.get("price", 0) or 0
     num = d.get("amount", 1) or 1
     return [LiveEvent(
         type="gift",
         user_name=uname,
-        amount=price * num,
+        amount=price * num / 1000,  # 金瓜子 → 元
+        num=num,
         gift_name=gift_name,
-        extra={"gift_id": d.get("gift_id"), "num": num},
+        extra={"gift_id": d.get("gift_id")},
     )]
 
 

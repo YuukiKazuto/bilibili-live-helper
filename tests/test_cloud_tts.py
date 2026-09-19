@@ -294,3 +294,59 @@ async def test_speak_reports_usage_response_event_to_charge_hook():
     )
     await tts.speak("计费")
     assert reported == [{"text_words": 5}]
+
+
+# ── 事件循环不阻塞 + 资源回收（2026-09-19 现场调试）──
+
+
+async def test_speak_does_not_block_event_loop():
+    """player.write 阻塞时事件循环必须仍能调度其他协程。
+
+    现场：write/drain 阻塞调用直接跑在事件循环里，播报期间收弹幕/
+    心跳全部冻结，websockets keepalive 20s 收不到 pong 即杀连接。
+    """
+    import asyncio
+    import time
+
+    class SlowPlayer(FakePlayer):
+        def write(self, data: bytes) -> None:
+            time.sleep(0.3)  # 模拟 sounddevice 阻塞写入
+            super().write(data)
+
+    ticks = 0
+
+    async def ticker():
+        nonlocal ticks
+        while True:
+            ticks += 1
+            await asyncio.sleep(0.01)
+
+    frames = [
+        audio_frame(b"a"),
+        encode_frame(MSG_FULL_SERVER_RESPONSE, b"{}", flag=FLAG_WITH_EVENT,
+                     event=EVENT_SESSION_FINISHED, session_id=SESSION),
+    ]
+    conn = FakeConnection(frames)
+    tts = CloudTTS(make_settings(), connect_factory=lambda: _fake_connect(conn),
+                   player=SlowPlayer())
+    task = asyncio.create_task(ticker())
+    await asyncio.sleep(0.05)
+    before = ticks
+    await tts.speak("不应阻塞循环")
+    after = ticks
+    task.cancel()
+    assert after - before > 5, f"事件循环被阻塞（tick 仅 {after - before} 次）"
+
+
+async def test_speak_closes_player():
+    """每次播报后必须关闭音频流（原实现泄漏 PortAudio 流）。"""
+    frames = [
+        audio_frame(b"a"),
+        encode_frame(MSG_FULL_SERVER_RESPONSE, b"{}", flag=FLAG_WITH_EVENT,
+                     event=EVENT_SESSION_FINISHED, session_id=SESSION),
+    ]
+    conn = FakeConnection(frames)
+    player = FakePlayer()
+    tts = CloudTTS(make_settings(), connect_factory=lambda: _fake_connect(conn), player=player)
+    await tts.speak("资源回收")
+    assert player.closed

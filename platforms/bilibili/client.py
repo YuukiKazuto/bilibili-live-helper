@@ -125,7 +125,10 @@ class BilibiliLiveClient(PlatformBase):
             except Exception:  # noqa: BLE001
                 logger.exception("结束应用会话失败")
         if self._ws:
-            await self._ws.close()
+            try:
+                await self._ws.close()
+            except Exception:  # noqa: BLE001 — 关闭握手超时等（现场实测 TimeoutError）不影响收尾
+                logger.warning("关闭长连异常（忽略）: %s", self._ws)
         if self._session:
             await self._session.close()
 

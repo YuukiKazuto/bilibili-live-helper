@@ -23,5 +23,7 @@
 - HTTP 签名：`x-bili-*` 请求头按字典序拼接后 HMAC-SHA256（见 `demo/ws.py` 的 `sign()`，实现时需配注释）。
 - 长连流程：`/v2/app/start` 获取 wss 地址与 auth_body → WebSocket 连接 → 发送鉴权包（op=7）→ 每 20s 心跳（op=2）+ 应用心跳（`/v2/app/heartbeat`）→ 退出时 `/v2/app/end`。
 - 二进制协议：大端 16 字节包头（packetLen/ver/op/seq），见 `demo/proto.py`。
+- 礼物金额单位：`LIVE_OPEN_PLATFORM_SEND_GIFT` 的 `price` 为**金瓜子**（1元 = 1000金瓜子，
+  2026-09-19 实测 0.1 元人气票 price=100），换算 `amount = price × num / 1000`。
 - 密钥（access_key/access_key_secret/app_id）来自项目配置文件；主播身份码由主播在 UI 填写并本地持久化（阶段 1），阶段 2 插件内直接获取（详见 [03-config-secrets.md](03-config-secrets.md)）。
 - 事件解析归一化为统一事件模型后进入事件总线（见 [01-architecture.md](01-architecture.md)），事件与播报开关的映射见 [02-features.md](02-features.md)。

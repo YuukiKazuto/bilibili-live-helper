@@ -151,10 +151,20 @@ class LocalLiveService(LiveHelperService):
                 {platform_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
             )
         finally:
+            # 先置位停止信号：解除 to_thread 等待线程（stop_task），
+            # 否则平台自行退出（没点停止）时 asyncio.run 关闭默认线程池会永久挂起
+            self._stop_requested.set()
             stop_task.cancel()
             platform_task.cancel()
-            with suppress(asyncio.CancelledError):
+            try:
                 await platform_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                # 平台以真实异常退出（断线 / keepalive 超时等）视为正常收尾，
+                # 只记日志，不向上抛（现场：ConnectionClosedError 穿透导致
+                # 「[服务] 事件循环异常退出」堆栈，即用户看到的「停止异常」）
+                logger.info("[服务] 平台连接退出: %s", exc)
             with suppress(Exception):
                 await platform.close()
             await queue.stop()

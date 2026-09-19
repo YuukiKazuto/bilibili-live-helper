@@ -13,13 +13,13 @@ def test_danmaku_format():
     assert "主播666" in text
 
 
-def test_gift_format_includes_gift_and_amount():
-    e = LiveEvent(type="gift", user_name="老板", gift_name="小花花", amount=1.0)
+def test_gift_format_includes_count_gift_and_amount():
+    e = LiveEvent(type="gift", user_name="老板", gift_name="小花花", num=3, amount=1.0)
     label, text = format_event(e)
     assert label == "礼物"
     assert "老板" in text
-    assert "小花花" in text
-    assert "1" in text  # 金额展示
+    assert "3 个小花花" in text  # 数量展示
+    assert "¥1" in text  # 金额展示
 
 
 def test_super_chat_format():
