@@ -23,9 +23,10 @@ from service.base import (
     ModelInfo,
     ProgressCallback,
     ServiceError,
+    SpeakerInfo,
 )
 from tts.base import TTSProvider
-from tts.cloud_tts import CloudTTS
+from tts.cloud_tts import CLOUD_SPEAKERS, CloudTTS
 from tts.local.model_manager import (
     AVAILABLE_MODELS,
     ModelManager,
@@ -40,7 +41,7 @@ logger = logging.getLogger(__name__)
 def _build_tts(settings: Settings, prefs: Preferences) -> TTSProvider:
     """按偏好构建 TTS（本地/云端可插拔）。"""
     if prefs.tts_mode == "cloud":
-        return CloudTTS(settings)
+        return CloudTTS(settings, speaker=prefs.tts_cloud_speaker)
     return LocalTTS(
         settings,
         prefs.tts_local_model,
@@ -209,6 +210,12 @@ class LocalLiveService(LiveHelperService):
                 downloaded=self._manager.is_downloaded(m),
             )
             for m in AVAILABLE_MODELS
+        ]
+
+    def list_cloud_speakers(self) -> list[SpeakerInfo]:
+        return [
+            SpeakerInfo(speaker_id=sid, display_name=name)
+            for name, sid in CLOUD_SPEAKERS
         ]
 
     async def download_model(self, model_id: str, progress: ProgressCallback | None = None) -> None:

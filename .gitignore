@@ -6,6 +6,10 @@ user_preferences.json
 # 本地 TTS 模型文件
 models/
 
+# PyInstaller 打包产物（内可能含密钥配置，见 rules/03）
+build/
+dist/
+
 # Python
 __pycache__/
 *.pyc

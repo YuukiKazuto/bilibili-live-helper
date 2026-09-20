@@ -33,21 +33,30 @@ from tts.volcengine_proto import (
 
 logger = logging.getLogger(__name__)
 
-# 协议常量（见 rules/06）
-WSS_ENDPOINT = "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream"
-RESOURCE_ID = "seed-tts-2.0"
-SAMPLE_RATE = 24000
+# 兜底默认音色（仅当用户偏好与 .env 的 TTS_CLOUD_DEFAULT_SPEAKER 均为空时使用；
+# 端点/资源ID/音频参数等接入配置全部走 Settings（.env 可覆盖），见 config/loader.py）
 DEFAULT_SPEAKER = "zh_female_vv_uranus_bigtts"
-CHANNELS = 1
+
+# 云端音色注册表（显示名, 音色 ID），顺序即 UI 下拉展示顺序（rules/06）。
+# 音色选择属用户偏好（Preferences.tts_cloud_speaker），由 service 层注入。
+CLOUD_SPEAKERS: list[tuple[str, str]] = [
+    ("Vivi 2.0", "zh_female_vv_uranus_bigtts"),
+    ("小何 2.0", "zh_female_xiaohe_uranus_bigtts"),
+    ("云舟 2.0", "zh_male_m191_uranus_bigtts"),
+    ("小天 2.0", "zh_male_taocheng_uranus_bigtts"),
+    ("少年梓辛 2.0", "zh_male_shaonianzixin_uranus_bigtts"),
+    ("魅力女友 2.0", "zh_female_meilinvyou_uranus_bigtts"),
+    ("刘飞 2.0", "zh_male_liufei_uranus_bigtts"),
+]
 
 ConnectFactory = Callable[[], Awaitable[Any]]
 
 
-def build_headers(api_key: str) -> dict[str, str]:
-    """构造鉴权与请求标识请求头。"""
+def build_headers(api_key: str, resource_id: str = "seed-tts-2.0") -> dict[str, str]:
+    """构造鉴权与请求标识请求头（resource_id 来自 Settings，见 config/loader.py）。"""
     return {
         "X-Api-Key": api_key,
-        "X-Api-Resource-Id": RESOURCE_ID,
+        "X-Api-Resource-Id": resource_id,
         "X-Api-Request-Id": str(uuid.uuid4()),
         # 要求服务端返回本次计费字符数（UsageResponse 事件）
         "X-Control-Require-Usage-Tokens-Return": "*",
@@ -57,7 +66,7 @@ def build_headers(api_key: str) -> dict[str, str]:
 def build_request_payload(
     text: str,
     speaker: str = DEFAULT_SPEAKER,
-    sample_rate: int = SAMPLE_RATE,
+    sample_rate: int = 24000,
 ) -> dict:
     """构造合成请求 JSON：一次性文本输入，流式 PCM 输出。"""
     return {
@@ -75,10 +84,10 @@ def build_request_payload(
 class PcmPlayer:
     """sounddevice PCM 播放器：write() 边收边播，drain() 等待播放排空。"""
 
-    def __init__(self, sample_rate: int = SAMPLE_RATE) -> None:
+    def __init__(self, sample_rate: int = 24000, channels: int = 1) -> None:
         self._stream = sd.RawOutputStream(
             samplerate=sample_rate,
-            channels=CHANNELS,
+            channels=channels,
             dtype="int16",
         )
         self._stream.start()
@@ -100,15 +109,34 @@ class CloudTTS(TTSProvider):
         self,
         settings,
         *,
+        speaker: str = "",
         connect_factory: ConnectFactory | None = None,
         player: Any = None,
         charge_hook: Callable[[dict], None] | None = None,
     ) -> None:
-        """connect_factory/player 可注入以便测试；生产环境用默认值。"""
+        """connect_factory/player 可注入以便测试；生产环境用默认值。
+
+        端点/资源ID/采样率/声道数等接入参数均从 Settings（.env 可覆盖）读取；
+        speaker 由调用方从用户偏好传入（UI 下拉选择，见 rules/06），
+        为空时依次回退：Settings 默认音色 → 内置 DEFAULT_SPEAKER。
+        """
         self.settings = settings
-        self.speaker = getattr(settings, "tts_cloud_speaker", "") or DEFAULT_SPEAKER
+        self.speaker = (
+            speaker
+            or getattr(settings, "tts_cloud_default_speaker", "")
+            or DEFAULT_SPEAKER
+        )
+        # 接入参数（.env 可覆盖，见 config/loader.py Settings 字段注释）
+        self.endpoint = settings.tts_cloud_endpoint
+        self.resource_id = settings.tts_cloud_resource_id
+        self.sample_rate = settings.tts_cloud_sample_rate
+        self.channels = settings.tts_cloud_channels
         self._connect_factory = connect_factory or self._default_connect
-        self._player_factory = (lambda: player) if player is not None else PcmPlayer
+        self._player_factory = (
+            (lambda: player)
+            if player is not None
+            else (lambda: PcmPlayer(self.sample_rate, self.channels))
+        )
         # 订阅制计费钩子（阶段 2 预留：订阅态校验、用量上报）
         self._charge_hook = charge_hook or self._charge_hook
         if not settings.tts_cloud_api_key:
@@ -126,7 +154,11 @@ class CloudTTS(TTSProvider):
             # 否则播报期间整个事件循环（收弹幕/心跳/ws keepalive）被冻结
             player = await asyncio.to_thread(self._player_factory)
             conn = await self._connect_factory()
-            request = json.dumps(build_request_payload(text, speaker=self.speaker))
+            request = json.dumps(
+                build_request_payload(
+                    text, speaker=self.speaker, sample_rate=self.sample_rate
+                )
+            )
             await conn.send(encode_full_client_request(request.encode("utf-8")))
 
             usage = None
@@ -173,8 +205,10 @@ class CloudTTS(TTSProvider):
     async def _default_connect(self):
         """生产连接：每次合成建立一条 WebSocket（无状态，失败即弃）。"""
         return await websockets.connect(
-            WSS_ENDPOINT,
-            additional_headers=build_headers(self.settings.tts_cloud_api_key),
+            self.endpoint,
+            additional_headers=build_headers(
+                self.settings.tts_cloud_api_key, self.resource_id
+            ),
             max_size=10 * 1024 * 1024,
         )
 

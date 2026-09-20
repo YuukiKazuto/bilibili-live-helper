@@ -57,6 +57,52 @@ def test_build_request_payload_custom_speaker_and_rate():
     assert params["audio_params"]["sample_rate"] == 16000
 
 
+def test_speaker_from_prefs_injection():
+    """音色由用户偏好注入（构造参数），为空时回退 Settings 默认音色。"""
+    tts = CloudTTS(make_settings(), speaker="zh_male_liufei_uranus_bigtts")
+    assert tts.speaker == "zh_male_liufei_uranus_bigtts"
+    fallback = CloudTTS(make_settings())
+    assert fallback.speaker == "zh_female_vv_uranus_bigtts"
+
+
+def test_protocol_params_from_settings():
+    """端点/资源ID/音频参数等接入配置从 Settings 读取（.env 可覆盖），不写死。"""
+    s = make_settings(
+        tts_cloud_endpoint="wss://custom.test/api",
+        tts_cloud_resource_id="res-custom",
+        tts_cloud_sample_rate=16000,
+        tts_cloud_channels=2,
+        tts_cloud_default_speaker="zh_male_liufei_uranus_bigtts",
+    )
+    tts = CloudTTS(s)
+    assert tts.endpoint == "wss://custom.test/api"
+    assert tts.resource_id == "res-custom"
+    assert tts.sample_rate == 16000
+    assert tts.channels == 2
+    # 用户偏好为空 → 回退 Settings 默认音色
+    assert tts.speaker == "zh_male_liufei_uranus_bigtts"
+    # 采样率进入合成请求
+    payload = build_request_payload("hi", speaker=tts.speaker, sample_rate=tts.sample_rate)
+    assert payload["req_params"]["audio_params"]["sample_rate"] == 16000
+
+
+def test_headers_use_settings_resource_id():
+    """请求头资源 ID 来自 Settings。"""
+    tts = CloudTTS(make_settings(tts_cloud_resource_id="res-xyz"))
+    headers = build_headers("k", tts.resource_id)
+    assert headers["X-Api-Resource-Id"] == "res-xyz"
+
+
+def test_cloud_speakers_registry():
+    """音色注册表：7 个音色，ID 唯一（UI 下拉顺序即列表顺序）。"""
+    from tts.cloud_tts import CLOUD_SPEAKERS
+
+    assert len(CLOUD_SPEAKERS) == 7
+    ids = [sid for _, sid in CLOUD_SPEAKERS]
+    assert len(ids) == len(set(ids))
+    assert "zh_female_vv_uranus_bigtts" in ids
+
+
 # ── 二进制帧编解码 ──
 
 
@@ -161,12 +207,21 @@ class FakeConnection:
         self.closed = True
 
 
-def make_settings(api_key: str = "test-key"):
+def make_settings(api_key: str = "test-key", **overrides):
+    """模拟 config.loader.Settings（云端 TTS 接入参数均从 settings 读取）。"""
+
     class S:
         tts_cloud_api_key = api_key
-        tts_cloud_speaker = "zh_female_vv_uranus_bigtts"
+        tts_cloud_endpoint = "wss://example.test/stream"
+        tts_cloud_resource_id = "seed-tts-2.0"
+        tts_cloud_sample_rate = 24000
+        tts_cloud_channels = 1
+        tts_cloud_default_speaker = "zh_female_vv_uranus_bigtts"
 
-    return S()
+    s = S()
+    for k, v in overrides.items():
+        setattr(s, k, v)
+    return s
 
 
 async def _fake_connect(conn: FakeConnection):

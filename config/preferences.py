@@ -46,6 +46,9 @@ class Preferences:
     tts_mode: str = "local"
     # 本地 TTS 模型选择："system"=系统自带；否则为 tts/local/model_manager.py 注册表中的 model_id
     tts_local_model: str = "system"
+    # 云端 TTS 音色（UI 下拉选择，注册表见 tts/cloud_tts.py CLOUD_SPEAKERS）
+    # 空 = 未选择，运行时回退 .env 的 TTS_CLOUD_DEFAULT_SPEAKER（再退内置默认）
+    tts_cloud_speaker: str = ""
     # 本地模型存放目录：留空按 rules/04 自动解析（用户数据目录/便携安装目录/开发目录）
     models_dir: str = ""
 

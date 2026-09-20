@@ -182,10 +182,16 @@ class MainWindow(QMainWindow):
             models = self.service.list_models()
         except Exception:  # noqa: BLE001 — 模型列表失败不阻塞设置窗
             logger.exception("[UI] 获取模型列表失败")
+        speakers = []
+        try:
+            speakers = self.service.list_cloud_speakers()
+        except Exception:  # noqa: BLE001 — 音色列表失败不阻塞设置窗
+            logger.exception("[UI] 获取云端音色列表失败")
         dialog = SettingsDialog(
             self.prefs,
             save_fn=self.service.save_preferences,
             models=models,
+            speakers=speakers,
             downloader=self._download_model,
         )
         dialog.exec()

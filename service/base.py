@@ -39,6 +39,14 @@ class ModelInfo:
     downloaded: bool
 
 
+@dataclass(frozen=True)
+class SpeakerInfo:
+    """云端 TTS 音色摘要（前端展示用）。"""
+
+    speaker_id: str
+    display_name: str
+
+
 class LiveHelperService(ABC):
     """前端服务接口。"""
 
@@ -85,6 +93,10 @@ class LiveHelperService(ABC):
     @abstractmethod
     def list_models(self) -> list[ModelInfo]:
         """可用本地模型列表及下载状态。"""
+
+    @abstractmethod
+    def list_cloud_speakers(self) -> list[SpeakerInfo]:
+        """可用云端 TTS 音色列表（顺序即 UI 展示顺序）。"""
 
     @abstractmethod
     async def download_model(self, model_id: str, progress: ProgressCallback | None = None) -> None:

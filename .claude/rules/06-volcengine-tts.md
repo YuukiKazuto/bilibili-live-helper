@@ -14,6 +14,10 @@
 ## 接入要点
 
 - **端点**：`wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream`
+  （接入参数——端点/资源 ID/采样率/声道数/默认音色——均经 `.env` 可配置，
+  键名 `TTS_CLOUD_ENDPOINT` / `TTS_CLOUD_RESOURCE_ID` / `TTS_CLOUD_SAMPLE_RATE` /
+  `TTS_CLOUD_CHANNELS` / `TTS_CLOUD_DEFAULT_SPEAKER`，见 `config/loader.py` Settings；
+  代码内不写死，仅留内置默认值兜底）
 - **鉴权（新版控制台）**：请求头
   - `X-Api-Key`：API Key，从控制台「API Key 管理」获取 → 存于项目配置文件 `TTS_CLOUD_API_KEY`（红线见 03/04）
   - `X-Api-Resource-Id`：`seed-tts-2.0`（豆包语音合成大模型 2.0）
@@ -30,7 +34,10 @@
     - `Error`(0xF)：4B 错误码 + JSON 错误信息
   - 会话结束后服务端不主动关连接，由客户端 `close()`
 - **请求 JSON**：`{"req_params": {"text": "...", "speaker": "<音色ID>", "audio_params": {"format": "pcm", "sample_rate": 24000}}}`
-  - `speaker`：音色 ID，默认 `zh_female_vv_uranus_bigtts`，可在控制台「音色库」查看试听；经 `Settings.tts_cloud_speaker` 可配置
+  - `speaker`：音色 ID，默认 `zh_female_vv_uranus_bigtts`。**音色属用户偏好**
+    （`Preferences.tts_cloud_speaker`），在 UI「设置 → 云端音色」下拉选择
+    （注册表 `CLOUD_SPEAKERS` 于 `tts/cloud_tts.py`，经 `service.list_cloud_speakers()`
+    提供给前端，rules/07「UI 复用约束」），**不再走 .env / Settings 配置**
   - 音频格式：**流式场景推荐 pcm**（不支持指定比特率），也可 mp3 / wav / ogg_opus；采样率 pcm/mp3/wav 默认 24000
   - 其他可选：`speech_rate` / `loudness_rate`（-50~100）、`ssml`、发音词典 `pronunciation_dict` 等，按需再接
 - **播放**：PCM 裸流边收边播（sounddevice 输出流），收完等排空，保证 `speak()` 阻塞至播放完成的队列语义

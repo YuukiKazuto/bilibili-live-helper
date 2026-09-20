@@ -57,13 +57,14 @@ class SettingsDialog(QDialog):
     download_finished = Signal(bool, str)
 
     def __init__(self, prefs: Preferences, save_fn=None, models=None,
-                 downloader=None, parent=None) -> None:
+                 speakers=None, downloader=None, parent=None) -> None:
         super().__init__(parent)
         self.prefs = prefs
         self._save_fn = save_fn
         self._downloader = downloader
         self._downloading = False
         self._downloaded: set[str] = {m.model_id for m in (models or []) if m.downloaded}
+        self._speakers = list(speakers or [])
         self.setWindowTitle("设置")
         self.setModal(True)
 
@@ -107,6 +108,19 @@ class SettingsDialog(QDialog):
         self.mode_combo.setCurrentIndex(max(0, self.mode_combo.findData(self.prefs.tts_mode)))
         form.addRow("TTS 模式", self.mode_combo)
 
+        # 云端音色（service.list_cloud_speakers() 注入；仅云端模式可选）
+        # 首项「默认音色」（data=""）= 未选择，运行时回退 .env 的 TTS_CLOUD_DEFAULT_SPEAKER
+        self.speaker_combo = QComboBox()
+        self.speaker_combo.addItem("默认音色", "")
+        for s in self._speakers:
+            self.speaker_combo.addItem(s.display_name, s.speaker_id)
+        idx = self.speaker_combo.findData(self.prefs.tts_cloud_speaker)
+        if idx >= 0:
+            self.speaker_combo.setCurrentIndex(idx)
+        form.addRow("云端音色", self.speaker_combo)
+        self.mode_combo.currentIndexChanged.connect(self._update_speaker_state)
+        self._update_speaker_state()
+
         self.model_combo = QComboBox()
         for m in models:
             self.model_combo.addItem(self._model_label(m), m.model_id)
@@ -145,6 +159,10 @@ class SettingsDialog(QDialog):
         return box
 
     # ── 模型下载 ──
+
+    def _update_speaker_state(self) -> None:
+        """仅云端 TTS 模式下可选音色。"""
+        self.speaker_combo.setEnabled(self.mode_combo.currentData() == "cloud")
 
     def _model_label(self, m) -> str:
         mark = "（已下载）" if m.model_id in self._downloaded else ""
@@ -208,6 +226,8 @@ class SettingsDialog(QDialog):
         self.prefs.amount_threshold = self.threshold_spin.value()
         self.prefs.tts_mode = self.mode_combo.currentData()
         self.prefs.tts_local_model = self.model_combo.currentData()
+        if self.speaker_combo.currentData() is not None:
+            self.prefs.tts_cloud_speaker = self.speaker_combo.currentData()
         if self._save_fn is not None:
             self._save_fn()
         super().accept()

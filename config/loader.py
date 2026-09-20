@@ -27,8 +27,17 @@ class Settings:
     bili_api_host: str = "https://live-open.biliapi.com"
 
     # 云端 TTS（密钥只从配置文件来，不读系统环境变量；接入规范见 rules/06）
+    # 接入参数（端点/资源ID/音频参数/默认音色）均可在 .env 覆盖，不写死在代码里
+    # 音色选择属用户偏好（Preferences.tts_cloud_speaker，UI 下拉选择），
+    # 此处的 default_speaker 是「用户未选择时」的兜底
     tts_cloud_api_key: str = ""
-    tts_cloud_speaker: str = "zh_female_vv_uranus_bigtts"
+    tts_cloud_endpoint: str = (
+        "wss://openspeech.bytedance.com/api/v3/tts/unidirectional/stream"
+    )
+    tts_cloud_resource_id: str = "seed-tts-2.0"
+    tts_cloud_sample_rate: int = 24000
+    tts_cloud_channels: int = 1
+    tts_cloud_default_speaker: str = "zh_female_vv_uranus_bigtts"
 
     # 后续新增大模型等密钥在此扩展
 
@@ -57,8 +66,20 @@ def load_settings(env_file: str = ".env", config_file: str = "config.json") -> S
         bili_access_secret=os.getenv("BILI_ACCESS_SECRET", ""),
         bili_api_host=os.getenv("BILI_API_HOST", Settings.bili_api_host),
         tts_cloud_api_key=os.getenv("TTS_CLOUD_API_KEY", ""),
-        tts_cloud_speaker=os.getenv(
-            "TTS_CLOUD_SPEAKER", Settings.tts_cloud_speaker
+        tts_cloud_endpoint=os.getenv(
+            "TTS_CLOUD_ENDPOINT", Settings.tts_cloud_endpoint
+        ),
+        tts_cloud_resource_id=os.getenv(
+            "TTS_CLOUD_RESOURCE_ID", Settings.tts_cloud_resource_id
+        ),
+        tts_cloud_sample_rate=int(
+            os.getenv("TTS_CLOUD_SAMPLE_RATE", str(Settings.tts_cloud_sample_rate))
+        ),
+        tts_cloud_channels=int(
+            os.getenv("TTS_CLOUD_CHANNELS", str(Settings.tts_cloud_channels))
+        ),
+        tts_cloud_default_speaker=os.getenv(
+            "TTS_CLOUD_DEFAULT_SPEAKER", Settings.tts_cloud_default_speaker
         ),
     )
 
